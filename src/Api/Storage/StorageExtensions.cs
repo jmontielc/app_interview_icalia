@@ -14,6 +14,7 @@ public static class StorageExtensions
             throw new InvalidOperationException("Storage:BucketName is not configured.");
         }
 
+        options.S3ServiceUrl = configuration["Aws:S3ServiceUrl"];
         services.AddSingleton(options);
         services.AddSingleton<IAmazonS3>(_ => CreateS3Client(configuration));
         services.AddSingleton<IObjectStorage, S3ObjectStorage>();

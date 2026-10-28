@@ -54,7 +54,7 @@ public class DocumentTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal("evil name.pdf", body.GetProperty("fileName").GetString());
         Assert.Equal("pending", body.GetProperty("processingStatus").GetString());
 
-        var key = Assert.Single(factory.Storage.Keys.Where(k => k.StartsWith($"applicants/{applicantId}/")));
+        var key = Assert.Single(factory.Storage.Keys, k => k.StartsWith($"applicants/{applicantId}/"));
         Assert.EndsWith(".pdf", key);
         Assert.DoesNotContain("evil", key);
     }

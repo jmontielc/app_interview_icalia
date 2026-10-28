@@ -54,7 +54,12 @@ public sealed class S3ObjectStorage(IAmazonS3 s3, StorageOptions options, TimePr
             BucketName = options.BucketName,
             Key = key,
             Verb = HttpVerb.GET,
-            Expires = clock.GetUtcNow().UtcDateTime.Add(lifetime)
+            Expires = clock.GetUtcNow().UtcDateTime.Add(lifetime),
+            // The SDK defaults to HTTPS. A plain-HTTP emulator would then hand out links that fail.
+            Protocol = IsPlainHttpEndpoint ? Protocol.HTTP : Protocol.HTTPS
         });
     }
+
+    private bool IsPlainHttpEndpoint =>
+        options.S3ServiceUrl?.StartsWith("http://", StringComparison.OrdinalIgnoreCase) == true;
 }

@@ -2,11 +2,14 @@ using Api.Domain;
 using Api.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Sqlite;
 
 namespace Api.Data;
 
 /// <summary>
-/// Development only. Creates the schema and one user per role. Migrations are not set up yet.
+/// Development only. Brings the schema up to date and creates one user per role.
+/// SQL Server uses the EF migrations. The SQLite test host has no migrations (they are SQL Server
+/// specific), so it builds the schema from the model.
 /// </summary>
 public static class DevDataSeeder
 {
@@ -14,7 +17,14 @@ public static class DevDataSeeder
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        if (db.Database.IsSqlite())
+        {
+            await db.Database.EnsureCreatedAsync();
+        }
+        else
+        {
+            await db.Database.MigrateAsync();
+        }
 
         if (await db.Users.AnyAsync())
         {

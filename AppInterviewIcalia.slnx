@@ -10,5 +10,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Api.Tests/Api.Tests.csproj" />
+    <Project Path="tests/PdfProcessor.Tests/PdfProcessor.Tests.csproj" />
   </Folder>
 </Solution>

@@ -83,7 +83,7 @@ Integration tests need no Docker. They run the real pipeline on SQLite with stub
 
 These are listed on purpose so reviewers know where the work stops:
 
-- **No EF migrations yet.** Development uses `EnsureCreated`. Run `dotnet-ef` migrations before any real deployment.
+- **Migrations run only in development.** The development startup applies the EF migrations in `src/Api/Data/Migrations` to SQL Server. Production must run `dotnet ef database update` (or an equivalent migration job) as a deploy step before the new API version starts.
 - **Development secrets are in config.** The signing key, dev password and bureau tokens are placeholders in `appsettings.Development.json`. Production must supply them from environment variables or a secret store.
 - **Local encryption keys.** Data Protection uses the local key ring. Production needs a persistent key store backed by KMS.
 - **No rate limiting or extra security headers yet.**
