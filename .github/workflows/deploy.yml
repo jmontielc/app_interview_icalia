@@ -1,0 +1,108 @@
+name: Deploy
+
+# Runs after CI passes on main. Each environment has its own AWS account, role and approval gate.
+# AWS access uses OIDC federation. No long-lived keys are stored in GitHub.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-artifacts:
+    name: Build and scan artifacts
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Publish API
+        run: dotnet publish src/Api/Api.csproj -c Release -o out/api
+      - name: Publish PdfProcessor Lambda
+        run: dotnet publish src/Lambda/PdfProcessor/PdfProcessor.csproj -c Release -r linux-x64 --self-contained false -o out/pdf-processor
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build web app
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      # Container image build, image scanning (for example Trivy) and IaC scanning (checkov)
+      # run here once the Dockerfile and Terraform/CDK code exist.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.sha }}
+          path: |
+            out/
+            web/dist/
+
+  deploy-dev:
+    name: Deploy to Dev
+    needs: build-artifacts
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-${{ github.sha }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      # Placeholder: push the image to ECR and update the ECS service, then upload web/dist to S3 and invalidate CloudFront.
+      - run: 'echo "TODO: deploy to dev"'
+      - name: Smoke test
+        run: 'echo "TODO: GET /health on the dev API and confirm the web app loads"'
+
+  integration-tests:
+    name: Integration and E2E tests (Dev)
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: 'echo "TODO: run Playwright E2E against the dev URL"'
+
+  deploy-qa:
+    name: Deploy to QA
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    environment: qa
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-${{ github.sha }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - run: 'echo "TODO: deploy to QA"'
+      - name: DAST scan
+        run: 'echo "TODO: run OWASP ZAP baseline against the QA URL"'
+
+  deploy-prod:
+    name: Deploy to Prod
+    needs: deploy-qa
+    runs-on: ubuntu-latest
+    # The prod environment requires a manual reviewer approval in GitHub before this job starts.
+    environment: prod
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-${{ github.sha }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      # Rolling deploy with health checks. Rolls back automatically if the smoke test fails.
+      - run: 'echo "TODO: deploy to prod (rolling)"'
+      - name: Smoke test
+        run: 'echo "TODO: smoke test prod; roll back on failure"'

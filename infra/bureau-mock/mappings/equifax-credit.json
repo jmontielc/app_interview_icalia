@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/equifax/v1/credit-reports",
+    "headers": { "Authorization": { "matches": "Bearer .+" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": { "creditScore": 712, "openAccounts": 4, "totalBalance": 8450.25 }
+  }
+}

@@ -1,0 +1,22 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Node / web
+web/node_modules/
+web/dist/
+
+# Local data and secrets
+*.db
+.env
+.env.*
+appsettings.Local.json
+secrets.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

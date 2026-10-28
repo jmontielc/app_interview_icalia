@@ -1,0 +1,36 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Local_Dev_Only!123}"
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3
+    environment:
+      SERVICES: s3,secretsmanager,lambda,kms
+      AWS_DEFAULT_REGION: us-east-1
+      DEBUG: "0"
+      # .NET cold starts can take longer than the default runtime startup timeout.
+      LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT: "120"
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./infra/localstack/init:/etc/localstack/init/ready.d:ro
+      # LocalStack runs Lambda code in sibling containers, so it needs the Docker socket.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  bureau-mock:
+    image: wiremock/wiremock:3.9.1
+    command: ["--port", "8080", "--verbose", "--root-dir", "/home/wiremock"]
+    volumes:
+      - ./infra/bureau-mock:/home/wiremock:ro
+    ports:
+      - "8080:8080"

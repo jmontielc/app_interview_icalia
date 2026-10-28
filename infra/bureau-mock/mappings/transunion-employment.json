@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/transunion/v2/employment/verify",
+    "headers": { "Authorization": { "matches": "Bearer .+" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": { "data": { "employed": true, "employerName": "Acme Lending Test Corp" } }
+  }
+}

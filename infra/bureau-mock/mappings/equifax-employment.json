@@ -1,0 +1,12 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/equifax/v1/employment-verifications",
+    "headers": { "Authorization": { "matches": "Bearer .+" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": { "employmentStatus": "ACTIVE", "employer": "Acme Lending Test Corp" }
+  }
+}

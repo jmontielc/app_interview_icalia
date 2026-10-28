@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/transunion/v2/reports/credit",
+    "headers": { "Authorization": { "matches": "Bearer .+" } }
+  },
+  "response": {
+    "status": 200,
+    "headers": { "Content-Type": "application/json" },
+    "jsonBody": {
+      "data": {
+        "score": { "value": 698 },
+        "tradelines": { "openCount": 6 },
+        "balances": { "total": 12310.00 }
+      }
+    }
+  }
+}
