@@ -140,3 +140,156 @@ Each environment has its own AWS account, its own Secrets Manager entries, and i
 | 19 | OIDC federation, least-privilege deploy role | Deploy pipeline |
 | 20 | DAST and security sign-off | QA environment |
 | 21 | Manual approval gate | Prod deploy |
+
+## 5. Component diagram
+
+Components as implemented in `web/`, `src/Api`, `src/Lambda/PdfProcessor`, and `src/Shared/AppInterview.Pdf`. Arrows point from the caller to the component it uses. The dashed box is planned, not built.
+
+```mermaid
+flowchart LR
+    subgraph FE["Frontend: web/ (Vue 3)"]
+        APP["App.vue<br/>navigation, sign out"]
+        ROUTER["router/index.ts<br/>route guards by role"]
+        AUTHSTORE["stores/auth.ts<br/>in-memory session"]
+        APICLIENT["api/client.ts<br/>bearer token, ApiError"]
+        VLOGIN["LoginView"]
+        VNEW["NewApplicantView"]
+        VDETAIL["ApplicantDetailView"]
+        VAUDIT["AuditView"]
+        SSNUI["utils/ssn.ts<br/>client-side SSN rules"]
+    end
+
+    subgraph API["Backend: src/Api (ASP.NET Core)"]
+        JWT["AddJwtAuthentication<br/>JWT bearer validation"]
+        POL["Policies and Roles<br/>AddAppAuthorization"]
+        subgraph CTRL["Controllers"]
+            CAUTH["AuthController<br/>dev sign-in"]
+            CAPP["ApplicantsController"]
+            CCR["CreditReportsController"]
+            CDOC["DocumentsController"]
+            CAUD["AuditController"]
+        end
+        subgraph SEC["Security"]
+            SSNVO["Ssn value object<br/>SsnValidator, SsnMasker"]
+            SSNJSON["SsnJsonConverter<br/>writes masked only"]
+            SSNPROT["SsnProtector<br/>Data Protection"]
+        end
+        TOK["TokenService<br/>issues HS256 JWT"]
+        subgraph SVC["Services"]
+            APPSVC["ApplicantService"]
+            BCS["BureauCheckService"]
+            DOCSVC["DocumentService"]
+            AUDLOG["AuditLogger"]
+        end
+        subgraph INT["Integrations"]
+            ICB["ICreditBureauClient"]
+            CBB["CreditBureauClientBase<br/>token, HTTP, error mapping"]
+            EQ["EquifaxClient"]
+            TU["TransUnionClient"]
+            ISP["ISecretProvider"]
+            CACHE["CachedSecretProvider<br/>5-minute TTL"]
+            CFG["ConfigSecretProvider<br/>development"]
+            ASM["AwsSecretsManagerProvider"]
+        end
+        subgraph STO["Storage"]
+            IOS["IObjectStorage"]
+            S3S["S3ObjectStorage<br/>SSE-KMS, presigned links"]
+        end
+        subgraph DATA["Data"]
+            DB["AppDbContext<br/>EF Core"]
+            SEED["DevDataSeeder<br/>migrations, dev users"]
+        end
+        ERR["BureauExceptionHandler<br/>502 ProblemDetails"]
+        PDFR["AppInterview.Pdf<br/>PdfRules"]
+    end
+
+    subgraph LAM["Lambda: src/Lambda/PdfProcessor"]
+        FN["Function.HandleAsync"]
+        IOST["IObjectStore"]
+        S3OS["S3ObjectStore"]
+    end
+
+    subgraph EXT["External systems"]
+        SQL[("SQL Server")]
+        S3[("S3 bucket<br/>documents")]
+        SM["Secrets Manager"]
+        EQAPI["Equifax API"]
+        TUAPI["TransUnion API"]
+        LMB["Lambda runtime"]
+        IDP["Cognito / OIDC"]
+    end
+
+    APP --> ROUTER
+    ROUTER --> VLOGIN
+    ROUTER --> VNEW
+    ROUTER --> VDETAIL
+    ROUTER --> VAUDIT
+    ROUTER --> AUTHSTORE
+    VNEW --> SSNUI
+    VLOGIN --> APICLIENT
+    VNEW --> APICLIENT
+    VDETAIL --> APICLIENT
+    VAUDIT --> APICLIENT
+    APICLIENT --> AUTHSTORE
+
+    APICLIENT -->|"HTTPS /api"| JWT
+    JWT --> POL
+    POL --> CAPP
+    POL --> CCR
+    POL --> CDOC
+    POL --> CAUD
+    JWT --> CAUTH
+    CAUTH --> TOK
+    CAUTH --> DB
+    CAPP --> APPSVC
+    CAPP --> BCS
+    CAPP --> AUDLOG
+    CAPP -.->|"JSON"| SSNJSON
+    CCR --> BCS
+    CCR --> DB
+    CCR --> AUDLOG
+    CDOC --> DOCSVC
+    CDOC --> AUDLOG
+    CDOC --> PDFR
+    CAUD --> DB
+
+    APPSVC --> SSNPROT
+    APPSVC --> SSNVO
+    APPSVC --> DB
+    BCS --> APPSVC
+    BCS --> ICB
+    BCS --> DB
+    SSNJSON --> SSNVO
+    SSNPROT --> SSNVO
+    DOCSVC --> IOS
+    DOCSVC --> DB
+    AUDLOG --> DB
+
+    ICB -.->|"implemented by"| CBB
+    EQ -->|"extends"| CBB
+    TU -->|"extends"| CBB
+    CBB --> ISP
+    CBB -.->|"bureau errors"| ERR
+    EQ --> EQAPI
+    TU --> TUAPI
+    ISP -.->|"implemented by"| CACHE
+    CACHE --> CFG
+    CACHE --> ASM
+    ASM --> SM
+    IOS -.->|"implemented by"| S3S
+    S3S --> S3
+    DB --> SQL
+    SEED --> DB
+
+    S3 -->|"ObjectCreated"| LMB
+    LMB --> FN
+    FN --> IOST
+    FN --> PDFR
+    IOST -.->|"implemented by"| S3OS
+    S3OS --> S3
+    CAUTH -.->|"planned: replace dev sign-in"| IDP
+    JWT -.->|"planned: validate Cognito tokens"| IDP
+
+    classDef planned stroke-dasharray: 5 5
+    class IDP planned
+```
